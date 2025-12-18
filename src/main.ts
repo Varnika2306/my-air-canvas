@@ -342,14 +342,21 @@ class AirCanvas {
         break;
     }
 
-    // Reset timers if gesture changed
+    // Reset timers and clear live position if gesture changed
     if (this.lastGestureState && state.current !== this.lastGestureState.current) {
       this.palmHoldStart = 0;
       this.fistHoldStart = 0;
+      // Clear live position when leaving draw mode
+      if (this.lastGestureState.current === 'draw') {
+        this.drawingCanvas.clearLivePosition();
+      }
     }
   }
 
   private handleDraw(position: { x: number; y: number }): void {
+    // Always update live position for real-time line feedback
+    this.drawingCanvas.updateLivePosition(position);
+
     // Check if poking an object
     const hitObject = this.objectManager.getObjectAtPosition(position.x, position.y);
     if (hitObject) {
@@ -451,6 +458,7 @@ class AirCanvas {
 
   private async closeAndInflate(): Promise<void> {
     const stroke = this.drawingCanvas.closeStroke();
+    this.drawingCanvas.clearLivePosition();
 
     if (!stroke) {
       this.showStatus('Draw a larger shape', 1000);

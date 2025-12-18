@@ -8,6 +8,7 @@ export class DrawingCanvas {
   private ctx: CanvasRenderingContext2D;
   private currentStroke: Stroke | null = null;
   private completedStrokes: Stroke[] = [];
+  private livePosition: Point2D | null = null;  // Real-time finger position
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -33,6 +34,9 @@ export class DrawingCanvas {
   addPoint(point: Point2D): void {
     if (!this.currentStroke) return;
 
+    // Always update live position for real-time feedback
+    this.livePosition = point;
+
     const lastPoint = this.currentStroke.points[this.currentStroke.points.length - 1];
     const dist = this.distance(point, lastPoint);
 
@@ -41,6 +45,15 @@ export class DrawingCanvas {
     if (dist >= STROKE.MIN_POINT_DISTANCE) {
       this.currentStroke.points.push(point);
     }
+  }
+
+  // Update live position without adding a point (for real-time tracking)
+  updateLivePosition(point: Point2D): void {
+    this.livePosition = point;
+  }
+
+  clearLivePosition(): void {
+    this.livePosition = null;
   }
 
   private distance(p1: Point2D, p2: Point2D): number {
@@ -116,10 +129,55 @@ export class DrawingCanvas {
       this.renderStroke(stroke, 0.3);
     }
 
-    // Render current stroke immediately (even with 1 point)
+    // Render current stroke with live extension to finger position
     if (this.currentStroke && this.currentStroke.points.length >= 1) {
-      this.renderStroke(this.currentStroke, 1.0);
+      this.renderStrokeWithLiveExtension(this.currentStroke, 1.0);
     }
+  }
+
+  private renderStrokeWithLiveExtension(stroke: Stroke, alpha: number): void {
+    if (stroke.points.length === 0) return;
+
+    this.ctx.save();
+    this.ctx.globalAlpha = alpha;
+    this.ctx.fillStyle = stroke.color;
+    this.ctx.strokeStyle = stroke.color;
+    this.ctx.lineWidth = stroke.width;
+    this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
+
+    // If only one point, draw a dot at live position or the point
+    if (stroke.points.length === 1 && !this.livePosition) {
+      this.ctx.beginPath();
+      this.ctx.arc(stroke.points[0].x, stroke.points[0].y, stroke.width / 2, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+      return;
+    }
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+    // Draw through all stored points
+    for (let i = 1; i < stroke.points.length - 1; i++) {
+      const xc = (stroke.points[i].x + stroke.points[i + 1].x) / 2;
+      const yc = (stroke.points[i].y + stroke.points[i + 1].y) / 2;
+      this.ctx.quadraticCurveTo(stroke.points[i].x, stroke.points[i].y, xc, yc);
+    }
+
+    // Draw to the last stored point
+    if (stroke.points.length > 1) {
+      const last = stroke.points[stroke.points.length - 1];
+      this.ctx.lineTo(last.x, last.y);
+    }
+
+    // Extend to live finger position for real-time feedback
+    if (this.livePosition) {
+      this.ctx.lineTo(this.livePosition.x, this.livePosition.y);
+    }
+
+    this.ctx.stroke();
+    this.ctx.restore();
   }
 
   private renderStroke(stroke: Stroke, alpha: number): void {
