@@ -1,6 +1,8 @@
 import { Point2D, Stroke } from './types';
 import { STROKE, GESTURE } from './constants';
 
+// Note: Visual smoothing is handled by quadratic curve rendering, not point storage
+
 export class DrawingCanvas {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -35,18 +37,10 @@ export class DrawingCanvas {
     const dist = this.distance(point, lastPoint);
 
     // Only add point if it's far enough from the last point
+    // Store raw positions - the quadratic curve rendering handles visual smoothing
     if (dist >= STROKE.MIN_POINT_DISTANCE) {
-      // Apply smoothing
-      const smoothedPoint = this.smooth(point, lastPoint);
-      this.currentStroke.points.push(smoothedPoint);
+      this.currentStroke.points.push(point);
     }
-  }
-
-  private smooth(current: Point2D, previous: Point2D): Point2D {
-    return {
-      x: previous.x + (current.x - previous.x) * (1 - STROKE.SMOOTHING),
-      y: previous.y + (current.y - previous.y) * (1 - STROKE.SMOOTHING)
-    };
   }
 
   private distance(p1: Point2D, p2: Point2D): number {

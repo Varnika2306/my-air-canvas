@@ -23,10 +23,10 @@ export class HandTracker {
     });
 
     this.hands.setOptions({
-      maxNumHands: 2,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.5
+      maxNumHands: 1,
+      modelComplexity: 0,  // Faster model for lower latency
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.4
     });
 
     this.hands.onResults((results) => this.onResults(results));
