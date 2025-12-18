@@ -5,7 +5,7 @@ import { HandVisualizer } from './handVisualizer';
 import { Scene3D } from './scene3D';
 import { ObjectManager } from './objectManager';
 import { HandLandmarks, GestureState, BalloonObject, Stroke } from './types';
-import { COLOR_ARRAY, GESTURE, TIMING } from './constants';
+import { GESTURE, TIMING } from './constants';
 
 class AirCanvas {
   // Core components
@@ -16,15 +16,19 @@ class AirCanvas {
   private scene3D: Scene3D;
   private objectManager: ObjectManager;
 
+  // Preview components
+  private previewVideo: HTMLVideoElement;
+  private previewCanvas: HTMLCanvasElement;
+  private previewCtx: CanvasRenderingContext2D;
+
   // DOM elements
   private loadingOverlay: HTMLElement;
   private statusMessage: HTMLElement;
-  private colorIndicator: HTMLElement;
-  private objectCounter: HTMLElement;
+  private colorSwatches: NodeListOf<HTMLElement>;
 
   // State
   private isDrawing = false;
-  private currentColorIndex = 0;
+  private currentColor = '#FFB3BA';
   private lastGestureState: GestureState | null = null;
   private currentLandmarks: HandLandmarks | null = null;
   private palmHoldStart = 0;
@@ -32,6 +36,13 @@ class AirCanvas {
   private handDetected = false;
   private lastFrameTime = 0;
   private grabbedObject: BalloonObject | null = null;
+  private lastPinchPosition: { x: number; y: number } | null = null;
+
+  // Mouse controls state
+  private isDragging = false;
+  private lastMouseX = 0;
+  private lastMouseY = 0;
+  private selectedObject: BalloonObject | null = null;
 
   constructor() {
     // Get DOM elements
@@ -40,10 +51,14 @@ class AirCanvas {
     const drawCanvas = document.getElementById('draw-canvas') as HTMLCanvasElement;
     const handCanvas = document.getElementById('hand-canvas') as HTMLCanvasElement;
 
+    // Preview elements
+    this.previewVideo = document.getElementById('preview-video') as HTMLVideoElement;
+    this.previewCanvas = document.getElementById('preview-canvas') as HTMLCanvasElement;
+    this.previewCtx = this.previewCanvas.getContext('2d')!;
+
     this.loadingOverlay = document.getElementById('loading-overlay')!;
     this.statusMessage = document.getElementById('status-message')!;
-    this.colorIndicator = document.getElementById('color-indicator')!;
-    this.objectCounter = document.getElementById('object-counter')!;
+    this.colorSwatches = document.querySelectorAll('.color-swatch');
 
     // Initialize components
     this.handTracker = new HandTracker(videoElement);
@@ -60,20 +75,130 @@ class AirCanvas {
     // Set initial size
     this.resize();
 
-    // Update color indicator
-    this.updateColorIndicator();
-
-    // Bind event listeners
-    window.addEventListener('resize', () => this.resize());
+    // Setup event listeners
+    this.setupEventListeners();
 
     // Start the application
     this.init();
+  }
+
+  private setupEventListeners(): void {
+    // Window resize
+    window.addEventListener('resize', () => this.resize());
+
+    // Color palette clicks
+    this.colorSwatches.forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        this.colorSwatches.forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+        this.currentColor = swatch.dataset.color || '#FFB3BA';
+      });
+    });
+
+    // Mouse controls for 3D scene
+    const sceneCanvas = document.getElementById('scene-canvas')!;
+
+    sceneCanvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+    sceneCanvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+    sceneCanvas.addEventListener('mouseup', () => this.onMouseUp());
+    sceneCanvas.addEventListener('mouseleave', () => this.onMouseUp());
+    sceneCanvas.addEventListener('wheel', (e) => this.onWheel(e));
+
+    // Touch support
+    sceneCanvas.addEventListener('touchstart', (e) => this.onTouchStart(e));
+    sceneCanvas.addEventListener('touchmove', (e) => this.onTouchMove(e));
+    sceneCanvas.addEventListener('touchend', () => this.onMouseUp());
+
+    // Click to select objects
+    sceneCanvas.addEventListener('click', (e) => this.onSceneClick(e));
+  }
+
+  private onMouseDown(e: MouseEvent): void {
+    this.isDragging = true;
+    this.lastMouseX = e.clientX;
+    this.lastMouseY = e.clientY;
+
+    // Check if clicking on an object
+    const hitObject = this.objectManager.getObjectAtPosition(e.clientX, e.clientY);
+    if (hitObject) {
+      this.selectedObject = hitObject;
+    }
+  }
+
+  private onMouseMove(e: MouseEvent): void {
+    if (!this.isDragging) return;
+
+    const deltaX = e.clientX - this.lastMouseX;
+    const deltaY = e.clientY - this.lastMouseY;
+
+    if (this.selectedObject) {
+      // Rotate the selected object
+      this.objectManager.rotateObject(this.selectedObject, deltaX * 0.01, deltaY * 0.01);
+    } else {
+      // Orbit the camera
+      this.scene3D.orbitCamera(deltaX * 0.005, deltaY * 0.005);
+    }
+
+    this.lastMouseX = e.clientX;
+    this.lastMouseY = e.clientY;
+  }
+
+  private onMouseUp(): void {
+    this.isDragging = false;
+    this.selectedObject = null;
+  }
+
+  private onWheel(e: WheelEvent): void {
+    e.preventDefault();
+    this.scene3D.zoomCamera(e.deltaY * 0.001);
+  }
+
+  private onTouchStart(e: TouchEvent): void {
+    if (e.touches.length === 1) {
+      this.isDragging = true;
+      this.lastMouseX = e.touches[0].clientX;
+      this.lastMouseY = e.touches[0].clientY;
+
+      const hitObject = this.objectManager.getObjectAtPosition(
+        e.touches[0].clientX,
+        e.touches[0].clientY
+      );
+      if (hitObject) {
+        this.selectedObject = hitObject;
+      }
+    }
+  }
+
+  private onTouchMove(e: TouchEvent): void {
+    if (!this.isDragging || e.touches.length !== 1) return;
+
+    const deltaX = e.touches[0].clientX - this.lastMouseX;
+    const deltaY = e.touches[0].clientY - this.lastMouseY;
+
+    if (this.selectedObject) {
+      this.objectManager.rotateObject(this.selectedObject, deltaX * 0.01, deltaY * 0.01);
+    } else {
+      this.scene3D.orbitCamera(deltaX * 0.005, deltaY * 0.005);
+    }
+
+    this.lastMouseX = e.touches[0].clientX;
+    this.lastMouseY = e.touches[0].clientY;
+  }
+
+  private onSceneClick(e: MouseEvent): void {
+    const hitObject = this.objectManager.getObjectAtPosition(e.clientX, e.clientY);
+    if (hitObject) {
+      this.objectManager.selectObject(hitObject);
+    }
   }
 
   private async init(): Promise<void> {
     try {
       // Start hand tracking
       await this.handTracker.start((landmarks) => this.onHandResults(landmarks));
+
+      // Setup camera preview
+      this.setupCameraPreview();
 
       // Hide loading overlay
       this.loadingOverlay.classList.add('hidden');
@@ -84,6 +209,19 @@ class AirCanvas {
       console.error('Failed to initialize:', error);
       this.showStatus('Camera access denied. Please allow camera access and refresh.');
     }
+  }
+
+  private setupCameraPreview(): void {
+    // Get the video stream from the hand tracker and display in preview
+    const webcam = document.getElementById('webcam') as HTMLVideoElement;
+    if (webcam.srcObject) {
+      this.previewVideo.srcObject = webcam.srcObject;
+      this.previewVideo.play();
+    }
+
+    // Set preview canvas size
+    this.previewCanvas.width = 200;
+    this.previewCanvas.height = 150;
   }
 
   private resize(): void {
@@ -109,6 +247,9 @@ class AirCanvas {
       this.hideStatus();
     }
 
+    // Render hand tracking on preview canvas
+    this.renderPreviewOverlay(landmarks);
+
     if (!landmarks) {
       // Pause drawing if hand leaves
       if (this.isDrawing) {
@@ -126,6 +267,47 @@ class AirCanvas {
     this.lastGestureState = gestureState;
   }
 
+  private renderPreviewOverlay(landmarks: HandLandmarks | null): void {
+    this.previewCtx.clearRect(0, 0, 200, 150);
+
+    if (!landmarks) return;
+
+    // Scale landmarks to preview size
+    const scaleX = 200 / window.innerWidth;
+    const scaleY = 150 / window.innerHeight;
+
+    // Draw hand skeleton connections
+    const connections = [
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [0, 9], [9, 10], [10, 11], [11, 12],
+      [0, 13], [13, 14], [14, 15], [15, 16],
+      [0, 17], [17, 18], [18, 19], [19, 20],
+      [5, 9], [9, 13], [13, 17]
+    ];
+
+    this.previewCtx.strokeStyle = '#bee17d';
+    this.previewCtx.lineWidth = 2;
+
+    for (const [from, to] of connections) {
+      const start = landmarks.landmarks[from];
+      const end = landmarks.landmarks[to];
+
+      this.previewCtx.beginPath();
+      this.previewCtx.moveTo(start.x * scaleX, start.y * scaleY);
+      this.previewCtx.lineTo(end.x * scaleX, end.y * scaleY);
+      this.previewCtx.stroke();
+    }
+
+    // Draw joints
+    this.previewCtx.fillStyle = '#bee17d';
+    for (const lm of landmarks.landmarks) {
+      this.previewCtx.beginPath();
+      this.previewCtx.arc(lm.x * scaleX, lm.y * scaleY, 3, 0, Math.PI * 2);
+      this.previewCtx.fill();
+    }
+  }
+
   private handleGesture(state: GestureState, landmarks: HandLandmarks): void {
     const indexTip = this.gestureDetector.getIndexTip(landmarks);
 
@@ -139,11 +321,11 @@ class AirCanvas {
         break;
 
       case 'palm':
-        this.handlePalm(state);
+        this.handlePalm();
         break;
 
       case 'fist':
-        this.handleFist(state);
+        this.handleFist();
         break;
 
       case 'swipe':
@@ -155,6 +337,7 @@ class AirCanvas {
         if (this.grabbedObject) {
           this.objectManager.releaseObject(this.grabbedObject);
           this.grabbedObject = null;
+          this.lastPinchPosition = null;
         }
         break;
     }
@@ -177,8 +360,7 @@ class AirCanvas {
     if (!this.isDrawing) {
       // Start new stroke
       this.isDrawing = true;
-      const color = COLOR_ARRAY[this.currentColorIndex];
-      this.drawingCanvas.startStroke(position, color);
+      this.drawingCanvas.startStroke(position, this.currentColor);
     } else {
       // Continue stroke
       this.drawingCanvas.addPoint(position);
@@ -200,18 +382,30 @@ class AirCanvas {
       if (hitObject) {
         this.grabbedObject = hitObject;
         this.objectManager.grabObject(hitObject);
+        this.lastPinchPosition = pinchCenter;
       }
     } else {
-      // Move grabbed object
-      this.objectManager.moveGrabbedObject(this.grabbedObject, pinchCenter.x, pinchCenter.y);
+      // Move and rotate grabbed object based on hand movement
+      if (this.lastPinchPosition) {
+        const deltaX = pinchCenter.x - this.lastPinchPosition.x;
+        const deltaY = pinchCenter.y - this.lastPinchPosition.y;
+
+        // Move the object
+        this.objectManager.moveGrabbedObject(this.grabbedObject, pinchCenter.x, pinchCenter.y);
+
+        // Rotate based on movement
+        this.objectManager.rotateObject(this.grabbedObject, deltaX * 0.02, deltaY * 0.02);
+      }
+      this.lastPinchPosition = pinchCenter;
     }
   }
 
-  private handlePalm(_state: GestureState): void {
+  private handlePalm(): void {
     // Release any grabbed object
     if (this.grabbedObject) {
       this.objectManager.releaseObject(this.grabbedObject);
       this.grabbedObject = null;
+      this.lastPinchPosition = null;
     }
 
     // Track palm hold time
@@ -228,7 +422,7 @@ class AirCanvas {
     }
   }
 
-  private handleFist(_state: GestureState): void {
+  private handleFist(): void {
     // Track fist hold time
     if (this.fistHoldStart === 0) {
       this.fistHoldStart = performance.now();
@@ -252,7 +446,6 @@ class AirCanvas {
     const hitObject = this.objectManager.getObjectAtPosition(position.x, position.y);
     if (hitObject) {
       this.objectManager.removeObject(hitObject);
-      this.updateObjectCounter();
     }
   }
 
@@ -291,13 +484,6 @@ class AirCanvas {
       // Clear the stroke from drawing canvas
       this.drawingCanvas.removeCompletedStroke(stroke);
       this.drawingCanvas.clear();
-
-      // Cycle to next color
-      this.currentColorIndex = (this.currentColorIndex + 1) % COLOR_ARRAY.length;
-      this.updateColorIndicator();
-
-      // Update counter
-      this.updateObjectCounter();
     } catch (error) {
       console.error('Failed to create balloon:', error);
       this.showStatus('Failed to create shape', 2000);
@@ -309,7 +495,6 @@ class AirCanvas {
     this.drawingCanvas.clearAll();
     await this.objectManager.clearAll();
     this.hideStatus();
-    this.updateObjectCounter();
   }
 
   private animate(): void {
@@ -339,7 +524,7 @@ class AirCanvas {
     this.handVisualizer.render(
       this.currentLandmarks,
       gestureState,
-      COLOR_ARRAY[this.currentColorIndex],
+      this.currentColor,
       deltaTime
     );
   }
@@ -355,15 +540,6 @@ class AirCanvas {
 
   private hideStatus(): void {
     this.statusMessage.classList.remove('visible');
-  }
-
-  private updateColorIndicator(): void {
-    this.colorIndicator.style.backgroundColor = COLOR_ARRAY[this.currentColorIndex];
-  }
-
-  private updateObjectCounter(): void {
-    const count = this.objectManager.getObjectCount();
-    this.objectCounter.textContent = `Objects: ${count}/10`;
   }
 }
 

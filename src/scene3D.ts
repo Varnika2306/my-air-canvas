@@ -9,6 +9,12 @@ export class Scene3D {
   private directionalLight!: THREE.DirectionalLight;
   private clock: THREE.Clock;
 
+  // Camera orbit controls
+  private cameraDistance = SCENE.CAMERA_Z;
+  private cameraTheta = 0;  // horizontal angle
+  private cameraPhi = Math.PI / 2;  // vertical angle (start looking straight)
+  private cameraTarget = new THREE.Vector3(0, 0, 0);
+
   constructor(canvas: HTMLCanvasElement) {
     // Create scene
     this.scene = new THREE.Scene();
@@ -20,7 +26,7 @@ export class Scene3D {
       SCENE.CAMERA_NEAR,
       SCENE.CAMERA_FAR
     );
-    this.camera.position.z = SCENE.CAMERA_Z;
+    this.updateCameraPosition();
 
     // Create renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -158,5 +164,46 @@ export class Scene3D {
 
     raycaster.setFromCamera(mouse, this.camera);
     return raycaster.intersectObjects(objects, true);
+  }
+
+  // Update camera position based on spherical coordinates
+  private updateCameraPosition(): void {
+    const x = this.cameraDistance * Math.sin(this.cameraPhi) * Math.sin(this.cameraTheta);
+    const y = this.cameraDistance * Math.cos(this.cameraPhi);
+    const z = this.cameraDistance * Math.sin(this.cameraPhi) * Math.cos(this.cameraTheta);
+
+    this.camera.position.set(
+      this.cameraTarget.x + x,
+      this.cameraTarget.y + y,
+      this.cameraTarget.z + z
+    );
+    this.camera.lookAt(this.cameraTarget);
+  }
+
+  // Orbit camera around target
+  orbitCamera(deltaTheta: number, deltaPhi: number): void {
+    this.cameraTheta += deltaTheta;
+    this.cameraPhi += deltaPhi;
+
+    // Clamp vertical angle to avoid flipping
+    this.cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, this.cameraPhi));
+
+    this.updateCameraPosition();
+  }
+
+  // Zoom camera in/out
+  zoomCamera(delta: number): void {
+    this.cameraDistance += delta * 5;
+    this.cameraDistance = Math.max(3, Math.min(30, this.cameraDistance));
+    this.updateCameraPosition();
+  }
+
+  // Reset camera to default position
+  resetCamera(): void {
+    this.cameraDistance = SCENE.CAMERA_Z;
+    this.cameraTheta = 0;
+    this.cameraPhi = Math.PI / 2;
+    this.cameraTarget.set(0, 0, 0);
+    this.updateCameraPosition();
   }
 }

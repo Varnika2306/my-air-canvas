@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Air Canvas - Gesture Drawing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -15,19 +18,51 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0f0a;
     }
 
     #app {
       width: 100%;
       height: 100%;
       position: relative;
-      background: linear-gradient(135deg, #475569 0%, #7c3aed 50%, #a78bfa 100%);
+      background: radial-gradient(ellipse at 50% 50%, #1a2a1a 0%, #0d120d 50%, #080a08 100%);
     }
 
-    /* Hidden video element for webcam */
+    /* Video element for webcam - now visible in preview */
     #webcam {
       display: none;
+    }
+
+    /* Camera preview in top left */
+    #camera-preview {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 200px;
+      height: 150px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid rgba(190, 225, 125, 0.3);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+      background: #000;
+    }
+
+    #camera-preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    #camera-preview canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
 
     /* 3D scene layer */
@@ -73,31 +108,85 @@
       pointer-events: none;
     }
 
+    #ui-overlay > * {
+      pointer-events: auto;
+    }
+
+    /* Title text */
+    .title-text {
+      position: absolute;
+      top: 30px;
+      left: 240px;
+      color: #bee17d;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      font-weight: 400;
+      font-style: italic;
+      letter-spacing: 0.02em;
+    }
+
+    /* Color palette */
+    #color-palette {
+      position: absolute;
+      top: 50%;
+      right: 30px;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px 12px;
+      background: rgba(20, 30, 20, 0.8);
+      border-radius: 30px;
+      border: 1px solid rgba(190, 225, 125, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .color-swatch {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.15);
+    }
+
+    .color-swatch.active {
+      border-color: #bee17d;
+      box-shadow: 0 0 15px rgba(190, 225, 125, 0.5);
+    }
+
     /* Gesture hints */
     .gesture-hints {
       position: absolute;
-      bottom: 20px;
-      left: 20px;
+      bottom: 30px;
+      left: 30px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      opacity: 0.7;
+      gap: 10px;
+      opacity: 0.8;
     }
 
     .gesture-hint {
       display: flex;
       align-items: center;
-      gap: 8px;
-      color: white;
-      font-size: 12px;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      gap: 12px;
+      color: rgba(190, 225, 125, 0.8);
+      font-size: 13px;
+      font-weight: 300;
+      letter-spacing: 0.03em;
     }
 
     .gesture-icon {
-      width: 24px;
-      height: 24px;
-      background: rgba(255,255,255,0.2);
-      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      background: rgba(190, 225, 125, 0.1);
+      border: 1px solid rgba(190, 225, 125, 0.3);
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -110,39 +199,33 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: white;
-      font-size: 18px;
+      color: #bee17d;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-style: italic;
       text-align: center;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
       opacity: 0;
       transition: opacity 0.3s ease;
+      text-shadow: 0 0 30px rgba(190, 225, 125, 0.3);
     }
 
     #status-message.visible {
       opacity: 1;
     }
 
-    /* Color indicator */
-    #color-indicator {
+    /* Controls info */
+    .controls-info {
       position: absolute;
-      top: 20px;
-      right: 20px;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 3px solid rgba(255,255,255,0.5);
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-
-    /* Object counter */
-    #object-counter {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      color: white;
-      font-size: 14px;
-      opacity: 0.7;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      bottom: 30px;
+      right: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: right;
+      color: rgba(190, 225, 125, 0.5);
+      font-size: 11px;
+      font-weight: 300;
+      letter-spacing: 0.05em;
     }
 
     /* Loading overlay */
@@ -152,7 +235,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(135deg, #475569 0%, #7c3aed 50%, #a78bfa 100%);
+      background: radial-gradient(ellipse at 50% 50%, #1a2a1a 0%, #0d120d 50%, #080a08 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -169,8 +252,8 @@
     .loading-spinner {
       width: 60px;
       height: 60px;
-      border: 4px solid rgba(255,255,255,0.2);
-      border-top-color: white;
+      border: 2px solid rgba(190, 225, 125, 0.2);
+      border-top-color: #bee17d;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
@@ -180,9 +263,27 @@
     }
 
     .loading-text {
-      color: white;
-      margin-top: 20px;
-      font-size: 16px;
+      color: #bee17d;
+      margin-top: 24px;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-style: italic;
+      letter-spacing: 0.05em;
+    }
+
+    /* Decorative elements */
+    .decorative-text {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 72px;
+      font-style: italic;
+      color: rgba(190, 225, 125, 0.08);
+      white-space: nowrap;
+      pointer-events: none;
+      user-select: none;
     }
   </style>
 </head>
@@ -193,9 +294,28 @@
     <canvas id="draw-canvas"></canvas>
     <canvas id="hand-canvas"></canvas>
 
+    <!-- Camera preview with hand tracking overlay -->
+    <div id="camera-preview">
+      <video id="preview-video" playsinline muted></video>
+      <canvas id="preview-canvas"></canvas>
+    </div>
+
     <div id="ui-overlay">
-      <div id="object-counter">Objects: 0/10</div>
-      <div id="color-indicator"></div>
+      <div class="title-text">Air Canvas</div>
+
+      <!-- Color palette -->
+      <div id="color-palette">
+        <div class="color-swatch active" data-color="#FFB3BA" style="background: #FFB3BA;"></div>
+        <div class="color-swatch" data-color="#FFFFBA" style="background: #FFFFBA;"></div>
+        <div class="color-swatch" data-color="#BAFFC9" style="background: #BAFFC9;"></div>
+        <div class="color-swatch" data-color="#BAE1FF" style="background: #BAE1FF;"></div>
+        <div class="color-swatch" data-color="#E8BAFF" style="background: #E8BAFF;"></div>
+        <div class="color-swatch" data-color="#FFD4A3" style="background: #FFD4A3;"></div>
+        <div class="color-swatch" data-color="#A3FFD4" style="background: #A3FFD4;"></div>
+        <div class="color-swatch" data-color="#D4A3FF" style="background: #D4A3FF;"></div>
+        <div class="color-swatch" data-color="#FFFFFF" style="background: #FFFFFF;"></div>
+        <div class="color-swatch" data-color="#bee17d" style="background: #bee17d;"></div>
+      </div>
 
       <div class="gesture-hints">
         <div class="gesture-hint">
@@ -204,7 +324,7 @@
         </div>
         <div class="gesture-hint">
           <div class="gesture-icon">🤏</div>
-          <span>Pinch to pause</span>
+          <span>Pinch to grab & rotate</span>
         </div>
         <div class="gesture-hint">
           <div class="gesture-icon">🖐️</div>
@@ -216,7 +336,15 @@
         </div>
       </div>
 
+      <div class="controls-info">
+        <span>SCROLL to zoom</span>
+        <span>DRAG to orbit</span>
+        <span>CLICK object to select</span>
+      </div>
+
       <div id="status-message"></div>
+
+      <div class="decorative-text">create with your hands</div>
     </div>
 
     <div id="loading-overlay">

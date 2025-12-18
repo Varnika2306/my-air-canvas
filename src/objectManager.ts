@@ -55,11 +55,6 @@ export class ObjectManager {
     this.scene.add(mesh);
     this.objects.push(balloonObject);
 
-    // Remove oldest if exceeding max
-    if (this.objects.length > SCENE.MAX_OBJECTS) {
-      await this.removeObject(this.objects[0], true);
-    }
-
     // Animate inflation
     await this.animateInflation(balloonObject);
 
@@ -333,5 +328,39 @@ export class ObjectManager {
 
   getObjectCount(): number {
     return this.objects.length;
+  }
+
+  // Rotate an object manually
+  rotateObject(obj: BalloonObject, deltaX: number, deltaY: number): void {
+    obj.mesh.rotation.y += deltaX;
+    obj.mesh.rotation.x += deltaY;
+  }
+
+  // Select an object (visual feedback)
+  selectObject(obj: BalloonObject): void {
+    // Brief highlight animation
+    gsap.to(obj.mesh.scale, {
+      x: obj.scale * 1.15,
+      y: obj.scale * 1.15,
+      z: obj.scale * 1.15,
+      duration: 0.15,
+      ease: 'power2.out',
+      onComplete: () => {
+        gsap.to(obj.mesh.scale, {
+          x: obj.scale,
+          y: obj.scale,
+          z: obj.scale,
+          duration: 0.2,
+          ease: 'power2.out'
+        });
+      }
+    });
+
+    // Jiggle effect
+    gsap.to(obj.mesh.rotation, {
+      y: obj.mesh.rotation.y + 0.3,
+      duration: 0.3,
+      ease: 'elastic.out(1, 0.5)'
+    });
   }
 }
