@@ -62,9 +62,9 @@ export class GestureDetector {
       y: (currentPalm.y - lastPalm.y) / dt
     };
 
-    // Smooth velocity with history
+    // Smooth velocity with minimal history for faster response
     this.velocityHistory.push(velocity);
-    if (this.velocityHistory.length > 5) {
+    if (this.velocityHistory.length > 2) {
       this.velocityHistory.shift();
     }
 
@@ -117,18 +117,18 @@ export class GestureDetector {
     if (this.isOpenPalm(landmarks)) {
       // Check if palm is stable (not moving much)
       this.palmHistory.push(this.getPalmCenter(landmarks));
-      if (this.palmHistory.length > 10) {
+      if (this.palmHistory.length > 6) {
         this.palmHistory.shift();
       }
 
-      if (this.palmHistory.length >= 5 && this.isPalmStable()) {
+      if (this.palmHistory.length >= 3 && this.isPalmStable()) {
         return 'palm';
       }
     } else {
       this.palmHistory = [];
     }
 
-    // Check for draw mode (index finger extended, others curled)
+    // Check for draw mode (index finger extended) - check this early for responsiveness
     if (this.isPointingIndex(landmarks)) {
       return 'draw';
     }
@@ -269,9 +269,9 @@ export class GestureDetector {
   }
 
   private isPalmStable(): boolean {
-    if (this.palmHistory.length < 5) return false;
+    if (this.palmHistory.length < 3) return false;
 
-    const recent = this.palmHistory.slice(-5);
+    const recent = this.palmHistory.slice(-3);
     const first = recent[0];
 
     for (const point of recent) {

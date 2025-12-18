@@ -122,21 +122,31 @@ export class DrawingCanvas {
       this.renderStroke(stroke, 0.3);
     }
 
-    // Render current stroke
-    if (this.currentStroke && this.currentStroke.points.length > 1) {
+    // Render current stroke immediately (even with 1 point)
+    if (this.currentStroke && this.currentStroke.points.length >= 1) {
       this.renderStroke(this.currentStroke, 1.0);
     }
   }
 
   private renderStroke(stroke: Stroke, alpha: number): void {
-    if (stroke.points.length < 2) return;
+    if (stroke.points.length === 0) return;
 
     this.ctx.save();
     this.ctx.globalAlpha = alpha;
+    this.ctx.fillStyle = stroke.color;
     this.ctx.strokeStyle = stroke.color;
     this.ctx.lineWidth = stroke.width;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
+
+    // If only one point, draw a dot
+    if (stroke.points.length === 1) {
+      this.ctx.beginPath();
+      this.ctx.arc(stroke.points[0].x, stroke.points[0].y, stroke.width / 2, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+      return;
+    }
 
     this.ctx.beginPath();
     this.ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
