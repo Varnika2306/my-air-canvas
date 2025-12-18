@@ -478,12 +478,12 @@ class AirCanvas {
   }
 
   private async createBalloon(stroke: Stroke): Promise<void> {
+    // Clear the stroke from drawing canvas FIRST before creating 3D object
+    this.drawingCanvas.removeCompletedStroke(stroke);
+    this.drawingCanvas.clear();
+
     try {
       await this.objectManager.createFromStroke(stroke);
-
-      // Clear the stroke from drawing canvas
-      this.drawingCanvas.removeCompletedStroke(stroke);
-      this.drawingCanvas.clear();
     } catch (error) {
       console.error('Failed to create balloon:', error);
       this.showStatus('Failed to create shape', 2000);
