@@ -220,8 +220,8 @@ class AirCanvas {
     }
 
     // Set preview canvas size
-    this.previewCanvas.width = 200;
-    this.previewCanvas.height = 150;
+    this.previewCanvas.width = 280;
+    this.previewCanvas.height = 210;
   }
 
   private resize(): void {
@@ -268,13 +268,13 @@ class AirCanvas {
   }
 
   private renderPreviewOverlay(landmarks: HandLandmarks | null): void {
-    this.previewCtx.clearRect(0, 0, 200, 150);
+    this.previewCtx.clearRect(0, 0, 280, 210);
 
     if (!landmarks) return;
 
     // Scale landmarks to preview size
-    const scaleX = 200 / window.innerWidth;
-    const scaleY = 150 / window.innerHeight;
+    const scaleX = 280 / window.innerWidth;
+    const scaleY = 210 / window.innerHeight;
 
     // Draw hand skeleton connections
     const connections = [
