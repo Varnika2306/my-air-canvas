@@ -4,6 +4,7 @@ import { DrawingCanvas } from './drawingCanvas';
 import { HandVisualizer } from './handVisualizer';
 import { Scene3D } from './scene3D';
 import { ObjectManager } from './objectManager';
+import { Multiplayer, MultiplayerEvent } from './multiplayer';
 import { HandLandmarks, GestureState, BalloonObject, Stroke } from './types';
 import { GESTURE, TIMING } from './constants';
 
@@ -15,6 +16,7 @@ class AirCanvas {
   private handVisualizer: HandVisualizer;
   private scene3D: Scene3D;
   private objectManager: ObjectManager;
+  private multiplayer: Multiplayer;
 
   // Preview components
   private previewVideo: HTMLVideoElement;
@@ -25,6 +27,13 @@ class AirCanvas {
   private loadingOverlay: HTMLElement;
   private statusMessage: HTMLElement;
   private colorSwatches: NodeListOf<HTMLElement>;
+
+  // Modal elements
+  private inviteModal: HTMLElement;
+  private roomCodeDisplay: HTMLElement;
+  private joinCodeInput: HTMLInputElement;
+  private statusDot: HTMLElement;
+  private statusText: HTMLElement;
 
   // State
   private isDrawing = false;
@@ -60,6 +69,13 @@ class AirCanvas {
     this.statusMessage = document.getElementById('status-message')!;
     this.colorSwatches = document.querySelectorAll('.color-swatch');
 
+    // Modal elements
+    this.inviteModal = document.getElementById('invite-modal')!;
+    this.roomCodeDisplay = document.getElementById('room-code')!;
+    this.joinCodeInput = document.getElementById('join-code-input') as HTMLInputElement;
+    this.statusDot = document.getElementById('status-dot')!;
+    this.statusText = document.getElementById('status-text')!;
+
     // Initialize components
     this.handTracker = new HandTracker(videoElement);
     this.gestureDetector = new GestureDetector();
@@ -71,12 +87,15 @@ class AirCanvas {
       window.innerWidth,
       window.innerHeight
     );
+    this.multiplayer = new Multiplayer();
 
     // Set initial size
     this.resize();
 
     // Setup event listeners
     this.setupEventListeners();
+    this.setupButtonListeners();
+    this.setupMultiplayer();
 
     // Start the application
     this.init();
@@ -111,6 +130,148 @@ class AirCanvas {
 
     // Click to select objects
     sceneCanvas.addEventListener('click', (e) => this.onSceneClick(e));
+  }
+
+  private setupButtonListeners(): void {
+    // Clear all button
+    const clearAllBtn = document.getElementById('clear-all-btn');
+    clearAllBtn?.addEventListener('click', () => {
+      this.clearAll();
+      // Broadcast to peers
+      if (this.multiplayer.isConnected()) {
+        this.multiplayer.broadcast({ type: 'clear_all' });
+      }
+    });
+
+    // Invite button
+    const inviteBtn = document.getElementById('invite-btn');
+    inviteBtn?.addEventListener('click', () => {
+      this.openInviteModal();
+    });
+
+    // Modal close button
+    const modalClose = document.getElementById('modal-close');
+    modalClose?.addEventListener('click', () => {
+      this.closeInviteModal();
+    });
+
+    // Close modal on overlay click
+    this.inviteModal?.addEventListener('click', (e) => {
+      if (e.target === this.inviteModal) {
+        this.closeInviteModal();
+      }
+    });
+
+    // Copy code button
+    const copyCodeBtn = document.getElementById('copy-code-btn');
+    copyCodeBtn?.addEventListener('click', () => {
+      this.copyRoomCode();
+    });
+
+    // Join room button
+    const joinRoomBtn = document.getElementById('join-room-btn');
+    joinRoomBtn?.addEventListener('click', () => {
+      this.joinRoom();
+    });
+
+    // Join on Enter key
+    this.joinCodeInput?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.joinRoom();
+      }
+    });
+  }
+
+  private setupMultiplayer(): void {
+    // Initialize multiplayer
+    this.multiplayer.initialize().then(() => {
+      this.roomCodeDisplay.textContent = this.multiplayer.getRoomCode();
+    }).catch(err => {
+      console.error('Failed to initialize multiplayer:', err);
+    });
+
+    // Handle status changes
+    this.multiplayer.onStatusChange((status, message) => {
+      this.statusDot.className = 'status-dot';
+      if (status === 'connected') {
+        this.statusDot.classList.add('connected');
+      } else if (status === 'connecting') {
+        this.statusDot.classList.add('connecting');
+      }
+      this.statusText.textContent = message;
+    });
+
+    // Handle multiplayer events
+    this.multiplayer.onEvent((event: MultiplayerEvent) => {
+      this.handleMultiplayerEvent(event);
+    });
+  }
+
+  private handleMultiplayerEvent(event: MultiplayerEvent): void {
+    switch (event.type) {
+      case 'balloon_created':
+        // Create balloon from peer's stroke
+        this.objectManager.createFromStroke(event.strokeData);
+        break;
+
+      case 'clear_all':
+        this.drawingCanvas.clearAll();
+        this.objectManager.clearAll();
+        break;
+
+      case 'peer_joined':
+        this.showStatus('Friend joined!', 2000);
+        break;
+
+      case 'peer_left':
+        this.showStatus('Friend left', 2000);
+        break;
+    }
+  }
+
+  private openInviteModal(): void {
+    this.inviteModal.classList.add('visible');
+  }
+
+  private closeInviteModal(): void {
+    this.inviteModal.classList.remove('visible');
+  }
+
+  private async copyRoomCode(): Promise<void> {
+    const code = this.multiplayer.getRoomCode();
+    try {
+      await navigator.clipboard.writeText(code);
+      const copyBtn = document.getElementById('copy-code-btn');
+      if (copyBtn) {
+        copyBtn.textContent = '✓';
+        setTimeout(() => {
+          copyBtn.textContent = '📋';
+        }, 2000);
+      }
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = code;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+  }
+
+  private async joinRoom(): Promise<void> {
+    const code = this.joinCodeInput.value.trim().toUpperCase();
+    if (code.length !== 6) {
+      this.statusText.textContent = 'Please enter a 6-character code';
+      return;
+    }
+
+    try {
+      await this.multiplayer.joinRoom(code);
+      this.showStatus('Connected!', 2000);
+    } catch {
+      this.statusText.textContent = 'Failed to connect';
+    }
   }
 
   private onMouseDown(e: MouseEvent): void {
@@ -443,6 +604,10 @@ class AirCanvas {
     if (holdDuration >= GESTURE.FIST_HOLD_TIME) {
       // Clear all objects
       this.clearAll();
+      // Broadcast to peers
+      if (this.multiplayer.isConnected()) {
+        this.multiplayer.broadcast({ type: 'clear_all' });
+      }
       this.fistHoldStart = 0;
     } else if (holdDuration > 200) {
       // Show progress
@@ -495,6 +660,14 @@ class AirCanvas {
 
     try {
       await this.objectManager.createFromStroke(stroke);
+
+      // Broadcast to peers
+      if (this.multiplayer.isConnected()) {
+        this.multiplayer.broadcast({
+          type: 'balloon_created',
+          strokeData: stroke
+        });
+      }
     } catch (error) {
       console.error('Failed to create balloon:', error);
       this.showStatus('Failed to create shape', 2000);
