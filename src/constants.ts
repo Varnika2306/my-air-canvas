@@ -48,7 +48,7 @@ export const GESTURE = {
 // Stroke settings
 export const STROKE = {
   WIDTH: 10,
-  MIN_POINT_DISTANCE: 5     // balanced: enough points for curves, not too noisy
+  MIN_POINT_DISTANCE: 8     // higher = smoother lines, less jitter
 };
 
 // Animation timings (in seconds)

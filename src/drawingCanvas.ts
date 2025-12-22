@@ -1,13 +1,17 @@
 import { Point2D, Stroke } from './types';
 import { STROKE, GESTURE } from './constants';
 
+// Jitter filter threshold - ignore movements smaller than this
+const JITTER_THRESHOLD = 3;
+
 export class DrawingCanvas {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private currentStroke: Stroke | null = null;
   private completedStrokes: Stroke[] = [];
-  private livePosition: Point2D | null = null;  // Real-time finger position
-  private recentPoints: Point2D[] = [];  // Buffer for weighted smoothing (8 points)
+  private livePosition: Point2D | null = null;
+  private filteredPosition: Point2D | null = null;  // Position after jitter filter
+  private recentPoints: Point2D[] = [];  // Buffer for smoothing
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -36,62 +40,85 @@ export class DrawingCanvas {
       closed: false
     };
     this.livePosition = point;
+    this.filteredPosition = point;
     this.recentPoints = [point];
   }
 
   addPoint(point: Point2D): void {
     if (!this.currentStroke) return;
 
-    // Add to recent points buffer (keep last 8)
-    this.recentPoints.push(point);
-    if (this.recentPoints.length > 8) {
+    // Apply jitter filter - ignore tiny movements
+    const filtered = this.applyJitterFilter(point);
+
+    // Add filtered point to buffer
+    this.recentPoints.push(filtered);
+    if (this.recentPoints.length > 10) {
       this.recentPoints.shift();
     }
 
-    // Use exponential weighted average for smooth lines
-    const smoothed = this.getExponentialAverage();
+    // Use strong smoothing
+    const smoothed = this.getSmoothedPosition();
     this.livePosition = smoothed;
 
     const lastPoint = this.currentStroke.points[this.currentStroke.points.length - 1];
     const dist = this.distance(smoothed, lastPoint);
 
-    // Capture points for curves
+    // Only add points that are far enough apart
     if (dist >= STROKE.MIN_POINT_DISTANCE) {
       this.currentStroke.points.push(smoothed);
     }
   }
 
-  // Exponential weighted average - much smoother, recent points still dominate
-  private getExponentialAverage(): Point2D {
+  // Filter out jitter - only update if movement is significant
+  private applyJitterFilter(point: Point2D): Point2D {
+    if (!this.filteredPosition) {
+      this.filteredPosition = point;
+      return point;
+    }
+
+    const dist = this.distance(point, this.filteredPosition);
+
+    // If movement is below threshold, ignore it (return last position)
+    if (dist < JITTER_THRESHOLD) {
+      return this.filteredPosition;
+    }
+
+    // Movement is significant - update filtered position
+    this.filteredPosition = point;
+    return point;
+  }
+
+  // Strong smoothing using simple moving average
+  private getSmoothedPosition(): Point2D {
     if (this.recentPoints.length === 0) {
       return { x: 0, y: 0 };
     }
 
-    // Exponential weights: [1, 2, 4, 8, 16, 32, 64, 128] - newest is 128x more important
-    let sumX = 0, sumY = 0, totalWeight = 0;
-    for (let i = 0; i < this.recentPoints.length; i++) {
-      const weight = Math.pow(2, i);
-      sumX += this.recentPoints[i].x * weight;
-      sumY += this.recentPoints[i].y * weight;
-      totalWeight += weight;
+    // Simple average of all points in buffer
+    let sumX = 0, sumY = 0;
+    for (const p of this.recentPoints) {
+      sumX += p.x;
+      sumY += p.y;
     }
     return {
-      x: sumX / totalWeight,
-      y: sumY / totalWeight
+      x: sumX / this.recentPoints.length,
+      y: sumY / this.recentPoints.length
     };
   }
 
   // Update live position without adding a point (for real-time tracking)
   updateLivePosition(point: Point2D): void {
-    this.recentPoints.push(point);
-    if (this.recentPoints.length > 8) {
+    const filtered = this.applyJitterFilter(point);
+    this.recentPoints.push(filtered);
+    if (this.recentPoints.length > 10) {
       this.recentPoints.shift();
     }
-    this.livePosition = this.getExponentialAverage();
+    this.livePosition = this.getSmoothedPosition();
   }
 
   clearLivePosition(): void {
     this.livePosition = null;
+    this.filteredPosition = null;
     this.recentPoints = [];
   }
 
