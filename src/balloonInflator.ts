@@ -63,7 +63,7 @@ export class BalloonInflator {
 
     // Scale based on stroke size
     const strokeSize = this.getStrokeSize(stroke.points);
-    const scale = Math.max(strokeSize.width, strokeSize.height) / 200;
+    const scale = Math.max(strokeSize.width, strokeSize.height) / 350;
     mesh.scale.set(scale, scale, scale);
 
     return mesh;
