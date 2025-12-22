@@ -1,15 +1,14 @@
 import { Hands, Results } from '@mediapipe/hands';
-import { Camera } from '@mediapipe/camera_utils';
 import { HandLandmarks, Point2D } from './types';
 
 export type HandResultsCallback = (landmarks: HandLandmarks | null) => void;
 
 export class HandTracker {
   private hands: Hands;
-  private camera: Camera | null = null;
   private videoElement: HTMLVideoElement;
   private callback: HandResultsCallback | null = null;
   private isRunning = false;
+  private animationId: number | null = null;
   private canvasWidth = 640;
   private canvasHeight = 480;
 
@@ -85,17 +84,20 @@ export class HandTracker {
       this.videoElement.srcObject = stream;
       await this.videoElement.play();
 
-      // Create MediaPipe camera utility with lower resolution for speed
-      this.camera = new Camera(this.videoElement, {
-        onFrame: async () => {
-          await this.hands.send({ image: this.videoElement });
-        },
-        width: 480,
-        height: 360
-      });
-
-      await this.camera.start();
       this.isRunning = true;
+
+      // Use direct requestAnimationFrame for lower latency
+      const processFrame = async () => {
+        if (!this.isRunning) return;
+
+        if (this.videoElement.readyState >= 2) {
+          await this.hands.send({ image: this.videoElement });
+        }
+
+        this.animationId = requestAnimationFrame(processFrame);
+      };
+
+      processFrame();
     } catch (error) {
       console.error('Failed to start hand tracking:', error);
       throw error;
@@ -103,17 +105,17 @@ export class HandTracker {
   }
 
   stop(): void {
-    if (this.camera) {
-      this.camera.stop();
-      this.camera = null;
+    this.isRunning = false;
+
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
     }
 
     const stream = this.videoElement.srcObject as MediaStream;
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
     }
-
-    this.isRunning = false;
   }
 
   isActive(): boolean {

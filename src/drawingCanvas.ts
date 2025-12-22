@@ -7,6 +7,7 @@ export class DrawingCanvas {
   private currentStroke: Stroke | null = null;
   private completedStrokes: Stroke[] = [];
   private livePosition: Point2D | null = null;  // Real-time finger position
+  private recentPoints: Point2D[] = [];  // Last 3 points for moving average
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -35,30 +36,59 @@ export class DrawingCanvas {
       closed: false
     };
     this.livePosition = point;
+    this.recentPoints = [point];
   }
 
   addPoint(point: Point2D): void {
     if (!this.currentStroke) return;
 
-    // No smoothing - use raw point for instant response
-    this.livePosition = point;
+    // Add to recent points buffer (keep last 3)
+    this.recentPoints.push(point);
+    if (this.recentPoints.length > 3) {
+      this.recentPoints.shift();
+    }
+
+    // Use 3-point moving average for smooth lines
+    const smoothed = this.getMovingAverage();
+    this.livePosition = smoothed;
 
     const lastPoint = this.currentStroke.points[this.currentStroke.points.length - 1];
-    const dist = this.distance(point, lastPoint);
+    const dist = this.distance(smoothed, lastPoint);
 
-    // Capture points frequently for smoother curves
+    // Capture points for curves
     if (dist >= STROKE.MIN_POINT_DISTANCE) {
-      this.currentStroke.points.push(point);
+      this.currentStroke.points.push(smoothed);
     }
+  }
+
+  private getMovingAverage(): Point2D {
+    if (this.recentPoints.length === 0) {
+      return { x: 0, y: 0 };
+    }
+
+    let sumX = 0, sumY = 0;
+    for (const p of this.recentPoints) {
+      sumX += p.x;
+      sumY += p.y;
+    }
+    return {
+      x: sumX / this.recentPoints.length,
+      y: sumY / this.recentPoints.length
+    };
   }
 
   // Update live position without adding a point (for real-time tracking)
   updateLivePosition(point: Point2D): void {
-    this.livePosition = point;
+    this.recentPoints.push(point);
+    if (this.recentPoints.length > 3) {
+      this.recentPoints.shift();
+    }
+    this.livePosition = this.getMovingAverage();
   }
 
   clearLivePosition(): void {
     this.livePosition = null;
+    this.recentPoints = [];
   }
 
   private distance(p1: Point2D, p2: Point2D): number {

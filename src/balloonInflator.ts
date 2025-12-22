@@ -61,9 +61,9 @@ export class BalloonInflator {
     const worldPos = this.screenToWorld(center.x, center.y);
     mesh.position.copy(worldPos);
 
-    // Scale based on stroke size
+    // Scale based on stroke size - smaller objects
     const strokeSize = this.getStrokeSize(stroke.points);
-    const scale = Math.max(strokeSize.width, strokeSize.height) / 350;
+    const scale = Math.max(strokeSize.width, strokeSize.height) / 600;
     mesh.scale.set(scale, scale, scale);
 
     return mesh;
