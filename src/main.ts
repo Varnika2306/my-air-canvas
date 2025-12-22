@@ -372,6 +372,9 @@ class AirCanvas {
       // Continue stroke
       this.drawingCanvas.addPoint(position);
     }
+
+    // Render immediately for lowest latency (don't wait for animation frame)
+    this.drawingCanvas.render();
   }
 
   private handlePinch(landmarks: HandLandmarks): void {

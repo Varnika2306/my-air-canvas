@@ -10,8 +10,8 @@ export class HandTracker {
   private videoElement: HTMLVideoElement;
   private callback: HandResultsCallback | null = null;
   private isRunning = false;
-  private canvasWidth = 1280;
-  private canvasHeight = 720;
+  private canvasWidth = 640;
+  private canvasHeight = 480;
 
   constructor(videoElement: HTMLVideoElement) {
     this.videoElement = videoElement;
@@ -72,11 +72,12 @@ export class HandTracker {
     if (this.isRunning) return;
 
     try {
-      // Request camera access
+      // Request camera access - lower resolution for faster processing
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 60 },
           facingMode: 'user'
         }
       });
@@ -84,13 +85,13 @@ export class HandTracker {
       this.videoElement.srcObject = stream;
       await this.videoElement.play();
 
-      // Create MediaPipe camera utility
+      // Create MediaPipe camera utility with lower resolution for speed
       this.camera = new Camera(this.videoElement, {
         onFrame: async () => {
           await this.hands.send({ image: this.videoElement });
         },
-        width: 1280,
-        height: 720
+        width: 640,
+        height: 480
       });
 
       await this.camera.start();
