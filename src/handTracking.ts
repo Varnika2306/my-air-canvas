@@ -24,8 +24,8 @@ export class HandTracker {
     this.hands.setOptions({
       maxNumHands: 1,
       modelComplexity: 0,  // Faster model for lower latency
-      minDetectionConfidence: 0.6,
-      minTrackingConfidence: 0.4
+      minDetectionConfidence: 0.4,  // Lower = more sensitive detection
+      minTrackingConfidence: 0.3   // Lower = keeps tracking better
     });
 
     this.hands.onResults((results) => this.onResults(results));
@@ -71,12 +71,12 @@ export class HandTracker {
     if (this.isRunning) return;
 
     try {
-      // Request camera access - lower resolution for faster processing
+      // Request camera access - balance between speed and detection quality
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 480 },
-          height: { ideal: 360 },
-          frameRate: { ideal: 60 },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 30 },  // 30fps is enough for hand tracking
           facingMode: 'user'
         }
       });
