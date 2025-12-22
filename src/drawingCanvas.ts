@@ -1,7 +1,8 @@
 import { Point2D, Stroke } from './types';
 import { STROKE, GESTURE } from './constants';
 
-// Note: Visual smoothing is handled by quadratic curve rendering, not point storage
+// Smoothing factor for reducing hand tracking jitter (0 = no smoothing, 1 = full smoothing)
+const SMOOTHING_FACTOR = 0.4;
 
 export class DrawingCanvas {
   private canvas: HTMLCanvasElement;
@@ -9,6 +10,7 @@ export class DrawingCanvas {
   private currentStroke: Stroke | null = null;
   private completedStrokes: Stroke[] = [];
   private livePosition: Point2D | null = null;  // Real-time finger position
+  private smoothedPosition: Point2D | null = null;  // Smoothed position for rendering
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -34,26 +36,40 @@ export class DrawingCanvas {
   addPoint(point: Point2D): void {
     if (!this.currentStroke) return;
 
-    // Always update live position for real-time feedback
+    // Apply smoothing to reduce jitter
+    const smoothedPoint = this.smoothPoint(point);
     this.livePosition = point;
+    this.smoothedPosition = smoothedPoint;
 
     const lastPoint = this.currentStroke.points[this.currentStroke.points.length - 1];
-    const dist = this.distance(point, lastPoint);
+    const dist = this.distance(smoothedPoint, lastPoint);
 
     // Only add point if it's far enough from the last point
-    // Store raw positions - the quadratic curve rendering handles visual smoothing
     if (dist >= STROKE.MIN_POINT_DISTANCE) {
-      this.currentStroke.points.push(point);
+      this.currentStroke.points.push(smoothedPoint);
     }
+  }
+
+  // Apply exponential moving average smoothing
+  private smoothPoint(point: Point2D): Point2D {
+    if (!this.smoothedPosition) {
+      return point;
+    }
+    return {
+      x: this.smoothedPosition.x + (point.x - this.smoothedPosition.x) * (1 - SMOOTHING_FACTOR),
+      y: this.smoothedPosition.y + (point.y - this.smoothedPosition.y) * (1 - SMOOTHING_FACTOR)
+    };
   }
 
   // Update live position without adding a point (for real-time tracking)
   updateLivePosition(point: Point2D): void {
     this.livePosition = point;
+    this.smoothedPosition = this.smoothPoint(point);
   }
 
   clearLivePosition(): void {
     this.livePosition = null;
+    this.smoothedPosition = null;
   }
 
   private distance(p1: Point2D, p2: Point2D): number {
@@ -171,9 +187,9 @@ export class DrawingCanvas {
       this.ctx.lineTo(last.x, last.y);
     }
 
-    // Extend to live finger position for real-time feedback
-    if (this.livePosition) {
-      this.ctx.lineTo(this.livePosition.x, this.livePosition.y);
+    // Extend to smoothed finger position for real-time feedback
+    if (this.smoothedPosition) {
+      this.ctx.lineTo(this.smoothedPosition.x, this.smoothedPosition.y);
     }
 
     this.ctx.stroke();
