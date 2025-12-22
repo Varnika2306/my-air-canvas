@@ -48,7 +48,7 @@ export const GESTURE = {
 // Stroke settings
 export const STROKE = {
   WIDTH: 10,
-  MIN_POINT_DISTANCE: 8     // minimum distance between points (higher = smoother but less detail)
+  MIN_POINT_DISTANCE: 4     // capture points frequently for smooth Catmull-Rom curves
 };
 
 // Animation timings (in seconds)
