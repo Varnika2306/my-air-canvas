@@ -41,7 +41,6 @@ class AirCanvas {
   private lastGestureState: GestureState | null = null;
   private currentLandmarks: HandLandmarks | null = null;
   private palmHoldStart = 0;
-  private fistHoldStart = 0;
   private handDetected = false;
   private lastFrameTime = 0;
   private grabbedObject: BalloonObject | null = null;
@@ -511,10 +510,6 @@ class AirCanvas {
         this.handlePalm();
         break;
 
-      case 'fist':
-        this.handleFist();
-        break;
-
       case 'swipe':
         this.handleSwipe(indexTip);
         break;
@@ -532,7 +527,6 @@ class AirCanvas {
     // Reset timers and clear live position if gesture changed
     if (this.lastGestureState && state.current !== this.lastGestureState.current) {
       this.palmHoldStart = 0;
-      this.fistHoldStart = 0;
       // Clear live position when leaving draw mode
       if (this.lastGestureState.current === 'draw') {
         this.drawingCanvas.clearLivePosition();
@@ -616,29 +610,6 @@ class AirCanvas {
       // Close and inflate current stroke
       this.closeAndInflate();
       this.palmHoldStart = 0;
-    }
-  }
-
-  private handleFist(): void {
-    // Track fist hold time
-    if (this.fistHoldStart === 0) {
-      this.fistHoldStart = performance.now();
-    }
-
-    const holdDuration = performance.now() - this.fistHoldStart;
-
-    if (holdDuration >= GESTURE.FIST_HOLD_TIME) {
-      // Clear all objects
-      this.clearAll();
-      // Broadcast to peers
-      if (this.multiplayer.isConnected()) {
-        this.multiplayer.broadcast({ type: 'clear_all' });
-      }
-      this.fistHoldStart = 0;
-    } else if (holdDuration > 200) {
-      // Show progress
-      const progress = holdDuration / GESTURE.FIST_HOLD_TIME;
-      this.showStatus(`Clearing... ${Math.round(progress * 100)}%`);
     }
   }
 
