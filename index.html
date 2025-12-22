@@ -7,6 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <!-- Preload MediaPipe models for faster hand tracking initialization -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="prefetch" href="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.binarypb" as="fetch" crossorigin>
+  <link rel="prefetch" href="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands_solution_packed_assets_loader.js" as="script" crossorigin>
+  <link rel="prefetch" href="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands_solution_simd_wasm_bin.js" as="script" crossorigin>
   <style>
     * {
       margin: 0;
@@ -27,6 +32,15 @@
       height: 100%;
       position: relative;
       background: radial-gradient(ellipse at 50% 50%, #1a2a1a 0%, #0d120d 50%, #080a08 100%);
+    }
+
+    /* Content wrapper with max-width */
+    .content-wrapper {
+      max-width: 1980px;
+      width: 100%;
+      height: 100%;
+      margin: 0 auto;
+      position: relative;
     }
 
     /* Video element for webcam - now visible in preview */
@@ -834,18 +848,19 @@
 </head>
 <body>
   <div id="app">
-    <video id="webcam" playsinline></video>
-    <canvas id="scene-canvas"></canvas>
-    <canvas id="draw-canvas"></canvas>
-    <canvas id="hand-canvas"></canvas>
+    <div class="content-wrapper">
+      <video id="webcam" playsinline></video>
+      <canvas id="scene-canvas"></canvas>
+      <canvas id="draw-canvas"></canvas>
+      <canvas id="hand-canvas"></canvas>
 
-    <!-- Camera preview with hand tracking overlay -->
-    <div id="camera-preview">
-      <video id="preview-video" playsinline muted></video>
-      <canvas id="preview-canvas"></canvas>
-    </div>
+      <!-- Camera preview with hand tracking overlay -->
+      <div id="camera-preview">
+        <video id="preview-video" playsinline muted></video>
+        <canvas id="preview-canvas"></canvas>
+      </div>
 
-    <div id="ui-overlay">
+      <div id="ui-overlay">
       <div class="title-section">
         <div class="title-text">Air Canvas</div>
         <div class="subtitle-text">Designed by <a href="https://www.instagram.com/janustiu/" target="_blank" rel="noopener noreferrer">Janus Tiu</a></div>
@@ -901,6 +916,7 @@
       <div id="status-message"></div>
 
       <div class="decorative-text">create with your hands</div>
+    </div>
     </div>
 
     <!-- Invite Modal -->

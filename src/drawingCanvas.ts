@@ -1,8 +1,10 @@
 import { Point2D, Stroke } from './types';
 import { STROKE, GESTURE } from './constants';
 
-// Smoothing factor for reducing hand tracking jitter (0 = no smoothing, 1 = full smoothing)
-const SMOOTHING_FACTOR = 0.6;
+// Adaptive smoothing: less smoothing for fast movements, more for slow
+const MIN_SMOOTHING = 0.2;  // Fast movements - more responsive
+const MAX_SMOOTHING = 0.6;  // Slow movements - smoother
+const VELOCITY_THRESHOLD = 50;  // Pixels per frame for max smoothing
 
 export class DrawingCanvas {
   private canvas: HTMLCanvasElement;
@@ -11,6 +13,7 @@ export class DrawingCanvas {
   private completedStrokes: Stroke[] = [];
   private livePosition: Point2D | null = null;  // Real-time finger position
   private smoothedPosition: Point2D | null = null;  // Smoothed position for rendering
+  private lastRawPosition: Point2D | null = null;  // For velocity calculation
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -50,14 +53,29 @@ export class DrawingCanvas {
     }
   }
 
-  // Apply exponential moving average smoothing
+  // Apply adaptive smoothing - less smoothing for fast movements
   private smoothPoint(point: Point2D): Point2D {
     if (!this.smoothedPosition) {
+      this.lastRawPosition = point;
       return point;
     }
+
+    // Calculate velocity (distance from last raw position)
+    let velocity = 0;
+    if (this.lastRawPosition) {
+      const dx = point.x - this.lastRawPosition.x;
+      const dy = point.y - this.lastRawPosition.y;
+      velocity = Math.sqrt(dx * dx + dy * dy);
+    }
+    this.lastRawPosition = point;
+
+    // Adaptive smoothing factor: fast movement = less smoothing (more responsive)
+    const velocityRatio = Math.min(velocity / VELOCITY_THRESHOLD, 1);
+    const smoothingFactor = MAX_SMOOTHING - (MAX_SMOOTHING - MIN_SMOOTHING) * velocityRatio;
+
     return {
-      x: this.smoothedPosition.x + (point.x - this.smoothedPosition.x) * (1 - SMOOTHING_FACTOR),
-      y: this.smoothedPosition.y + (point.y - this.smoothedPosition.y) * (1 - SMOOTHING_FACTOR)
+      x: this.smoothedPosition.x + (point.x - this.smoothedPosition.x) * (1 - smoothingFactor),
+      y: this.smoothedPosition.y + (point.y - this.smoothedPosition.y) * (1 - smoothingFactor)
     };
   }
 
@@ -70,6 +88,7 @@ export class DrawingCanvas {
   clearLivePosition(): void {
     this.livePosition = null;
     this.smoothedPosition = null;
+    this.lastRawPosition = null;
   }
 
   private distance(p1: Point2D, p2: Point2D): number {
