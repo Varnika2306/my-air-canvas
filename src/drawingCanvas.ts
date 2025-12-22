@@ -1,27 +1,30 @@
 import { Point2D, Stroke } from './types';
 import { STROKE, GESTURE } from './constants';
 
-// Light smoothing for responsiveness - smoothness comes from curve rendering
-const SMOOTHING_FACTOR = 0.15;  // Very light smoothing for fast response
-
 export class DrawingCanvas {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private currentStroke: Stroke | null = null;
   private completedStrokes: Stroke[] = [];
   private livePosition: Point2D | null = null;  // Real-time finger position
-  private smoothedPosition: Point2D | null = null;  // Smoothed position for rendering
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) throw new Error('Could not get 2D context');
     this.ctx = ctx;
+
+    // Enable image smoothing for better line quality
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = 'high';
   }
 
   resize(width: number, height: number): void {
     this.canvas.width = width;
     this.canvas.height = height;
+    // Re-enable after resize
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = 'high';
   }
 
   startStroke(point: Point2D, color: string): void {
@@ -31,46 +34,31 @@ export class DrawingCanvas {
       width: STROKE.WIDTH,
       closed: false
     };
+    this.livePosition = point;
   }
 
   addPoint(point: Point2D): void {
     if (!this.currentStroke) return;
 
-    // Apply light smoothing for responsiveness
-    const smoothedPoint = this.smoothPoint(point);
+    // No smoothing - use raw point for instant response
     this.livePosition = point;
-    this.smoothedPosition = smoothedPoint;
 
     const lastPoint = this.currentStroke.points[this.currentStroke.points.length - 1];
-    const dist = this.distance(smoothedPoint, lastPoint);
+    const dist = this.distance(point, lastPoint);
 
     // Capture points frequently for smoother curves
     if (dist >= STROKE.MIN_POINT_DISTANCE) {
-      this.currentStroke.points.push(smoothedPoint);
+      this.currentStroke.points.push(point);
     }
-  }
-
-  // Light EMA smoothing - just enough to reduce jitter
-  private smoothPoint(point: Point2D): Point2D {
-    if (!this.smoothedPosition) {
-      return point;
-    }
-
-    return {
-      x: this.smoothedPosition.x + (point.x - this.smoothedPosition.x) * (1 - SMOOTHING_FACTOR),
-      y: this.smoothedPosition.y + (point.y - this.smoothedPosition.y) * (1 - SMOOTHING_FACTOR)
-    };
   }
 
   // Update live position without adding a point (for real-time tracking)
   updateLivePosition(point: Point2D): void {
     this.livePosition = point;
-    this.smoothedPosition = this.smoothPoint(point);
   }
 
   clearLivePosition(): void {
     this.livePosition = null;
-    this.smoothedPosition = null;
   }
 
   private distance(p1: Point2D, p2: Point2D): number {
@@ -165,8 +153,8 @@ export class DrawingCanvas {
 
     // Build points array including live position
     let points = [...stroke.points];
-    if (this.smoothedPosition) {
-      points.push(this.smoothedPosition);
+    if (this.livePosition) {
+      points.push(this.livePosition);
     }
 
     // If only one point, draw a dot
@@ -178,14 +166,14 @@ export class DrawingCanvas {
       return;
     }
 
-    // Use Catmull-Rom spline for ultra-smooth curves
-    this.drawCatmullRomSpline(points);
+    // Use smooth bezier curves
+    this.drawSmoothCurve(points);
     this.ctx.stroke();
     this.ctx.restore();
   }
 
-  // Catmull-Rom spline interpolation for smooth curves
-  private drawCatmullRomSpline(points: Point2D[]): void {
+  // Smooth curve using cubic bezier with calculated control points
+  private drawSmoothCurve(points: Point2D[]): void {
     if (points.length < 2) return;
 
     this.ctx.beginPath();
@@ -196,39 +184,24 @@ export class DrawingCanvas {
       return;
     }
 
-    // Tension parameter (0.5 = Catmull-Rom)
-    const tension = 0.5;
-
+    // Use quadratic curves through midpoints for smooth result
     for (let i = 0; i < points.length - 1; i++) {
-      const p0 = points[Math.max(0, i - 1)];
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const p3 = points[Math.min(points.length - 1, i + 2)];
+      const p0 = points[i];
+      const p1 = points[i + 1];
 
-      // Number of segments between points (more = smoother)
-      const segments = 8;
-
-      for (let t = 1; t <= segments; t++) {
-        const s = t / segments;
-        const s2 = s * s;
-        const s3 = s2 * s;
-
-        // Catmull-Rom basis functions
-        const x = 0.5 * (
-          (2 * p1.x) +
-          (-p0.x + p2.x) * s +
-          (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * s2 +
-          (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * s3
-        );
-
-        const y = 0.5 * (
-          (2 * p1.y) +
-          (-p0.y + p2.y) * s +
-          (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * s2 +
-          (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * s3
-        );
-
-        this.ctx.lineTo(x, y);
+      if (i === 0) {
+        // First segment: line to midpoint
+        const midX = (p0.x + p1.x) / 2;
+        const midY = (p0.y + p1.y) / 2;
+        this.ctx.lineTo(midX, midY);
+      } else if (i === points.length - 2) {
+        // Last segment: curve to end point
+        this.ctx.quadraticCurveTo(p0.x, p0.y, p1.x, p1.y);
+      } else {
+        // Middle segments: curve to midpoint
+        const midX = (p0.x + p1.x) / 2;
+        const midY = (p0.y + p1.y) / 2;
+        this.ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
       }
     }
   }
@@ -253,12 +226,12 @@ export class DrawingCanvas {
       return;
     }
 
-    // Use Catmull-Rom spline for smooth curves
+    // Use smooth curves
     let points = [...stroke.points];
     if (stroke.closed) {
       points.push(stroke.points[0]);  // Close the loop
     }
-    this.drawCatmullRomSpline(points);
+    this.drawSmoothCurve(points);
     this.ctx.stroke();
     this.ctx.restore();
   }
@@ -301,7 +274,7 @@ export class DrawingCanvas {
     if (stroke.closed) {
       points.push(stroke.points[0]);  // Close the loop
     }
-    this.drawCatmullRomSpline(points);
+    this.drawSmoothCurve(points);
   }
 
   removeCompletedStroke(stroke: Stroke): void {

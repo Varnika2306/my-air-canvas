@@ -75,8 +75,8 @@ export class HandTracker {
       // Request camera access - lower resolution for faster processing
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          width: { ideal: 480 },
+          height: { ideal: 360 },
           frameRate: { ideal: 60 },
           facingMode: 'user'
         }
@@ -90,8 +90,8 @@ export class HandTracker {
         onFrame: async () => {
           await this.hands.send({ image: this.videoElement });
         },
-        width: 640,
-        height: 480
+        width: 480,
+        height: 360
       });
 
       await this.camera.start();
