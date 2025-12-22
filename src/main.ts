@@ -180,6 +180,27 @@ class AirCanvas {
         this.joinRoom();
       }
     });
+
+    // Camera preview expand button
+    const previewExpandBtn = document.getElementById('preview-expand-btn');
+    const cameraPreview = document.getElementById('camera-preview');
+    previewExpandBtn?.addEventListener('click', () => {
+      cameraPreview?.classList.toggle('expanded');
+      // Update preview canvas size when expanded
+      this.updatePreviewCanvasSize();
+    });
+  }
+
+  private updatePreviewCanvasSize(): void {
+    const cameraPreview = document.getElementById('camera-preview');
+    const isExpanded = cameraPreview?.classList.contains('expanded');
+
+    // Get computed size of the preview container
+    if (cameraPreview) {
+      const rect = cameraPreview.getBoundingClientRect();
+      this.previewCanvas.width = rect.width;
+      this.previewCanvas.height = rect.height;
+    }
   }
 
   private setupMultiplayer(): void {
@@ -429,8 +450,8 @@ class AirCanvas {
   }
 
   private renderPreviewOverlay(landmarks: HandLandmarks | null): void {
-    const previewWidth = 320;
-    const previewHeight = 240;
+    const previewWidth = this.previewCanvas.width || 320;
+    const previewHeight = this.previewCanvas.height || 240;
     this.previewCtx.clearRect(0, 0, previewWidth, previewHeight);
 
     if (!landmarks) return;
@@ -450,8 +471,10 @@ class AirCanvas {
       [5, 9], [9, 13], [13, 17]
     ];
 
+    // Scale line width and joint size based on preview size
+    const uiScale = previewWidth / 320;
     this.previewCtx.strokeStyle = '#bee17d';
-    this.previewCtx.lineWidth = 2;
+    this.previewCtx.lineWidth = 2 * uiScale;
 
     for (const [from, to] of connections) {
       const start = landmarks.landmarks[from];
@@ -467,7 +490,7 @@ class AirCanvas {
     this.previewCtx.fillStyle = '#bee17d';
     for (const lm of landmarks.landmarks) {
       this.previewCtx.beginPath();
-      this.previewCtx.arc(lm.x * scale + offsetX, lm.y * scale + offsetY, 3, 0, Math.PI * 2);
+      this.previewCtx.arc(lm.x * scale + offsetX, lm.y * scale + offsetY, 3 * uiScale, 0, Math.PI * 2);
       this.previewCtx.fill();
     }
   }

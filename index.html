@@ -61,6 +61,12 @@
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
       z-index: 10;
       background: #000;
+      transition: all 0.3s ease;
+    }
+
+    #camera-preview.expanded {
+      width: 640px;
+      height: 480px;
     }
 
     #camera-preview video {
@@ -77,6 +83,34 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
+    }
+
+    .preview-expand-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(190, 225, 125, 0.4);
+      border-radius: 6px;
+      color: #bee17d;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      z-index: 11;
+    }
+
+    .preview-expand-btn:hover {
+      background: rgba(190, 225, 125, 0.2);
+      border-color: rgba(190, 225, 125, 0.6);
+    }
+
+    #camera-preview.expanded .preview-expand-btn {
+      transform: rotate(180deg);
     }
 
     /* 3D scene layer */
@@ -600,6 +634,11 @@
         height: 180px;
       }
 
+      #camera-preview.expanded {
+        width: 480px;
+        height: 360px;
+      }
+
       .title-text {
         font-size: 28px;
       }
@@ -625,6 +664,11 @@
         left: 16px;
         width: 160px;
         height: 120px;
+      }
+
+      #camera-preview.expanded {
+        width: 320px;
+        height: 240px;
       }
 
       .action-buttons {
@@ -858,6 +902,7 @@
       <div id="camera-preview">
         <video id="preview-video" playsinline muted></video>
         <canvas id="preview-canvas"></canvas>
+        <button class="preview-expand-btn" id="preview-expand-btn" title="Expand preview">⤢</button>
       </div>
 
       <div id="ui-overlay">
