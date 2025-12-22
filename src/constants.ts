@@ -48,7 +48,7 @@ export const GESTURE = {
 // Stroke settings
 export const STROKE = {
   WIDTH: 10,
-  MIN_POINT_DISTANCE: 5     // minimum distance between points (higher = smoother but less detail)
+  MIN_POINT_DISTANCE: 8     // minimum distance between points (higher = smoother but less detail)
 };
 
 // Animation timings (in seconds)

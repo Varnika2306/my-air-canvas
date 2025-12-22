@@ -2,7 +2,7 @@ import { Point2D, Stroke } from './types';
 import { STROKE, GESTURE } from './constants';
 
 // Smoothing factor for reducing hand tracking jitter (0 = no smoothing, 1 = full smoothing)
-const SMOOTHING_FACTOR = 0.4;
+const SMOOTHING_FACTOR = 0.6;
 
 export class DrawingCanvas {
   private canvas: HTMLCanvasElement;
