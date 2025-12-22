@@ -7,7 +7,7 @@ export class DrawingCanvas {
   private currentStroke: Stroke | null = null;
   private completedStrokes: Stroke[] = [];
   private livePosition: Point2D | null = null;  // Real-time finger position
-  private recentPoints: Point2D[] = [];  // Last 3 points for moving average
+  private recentPoints: Point2D[] = [];  // Buffer for weighted smoothing (6 points)
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -42,48 +42,53 @@ export class DrawingCanvas {
   addPoint(point: Point2D): void {
     if (!this.currentStroke) return;
 
-    // Add to recent points buffer (keep last 3)
+    // Add to recent points buffer (keep last 6)
     this.recentPoints.push(point);
-    if (this.recentPoints.length > 3) {
+    if (this.recentPoints.length > 6) {
       this.recentPoints.shift();
     }
 
-    // Use 3-point moving average for smooth lines
-    const smoothed = this.getMovingAverage();
+    // Use weighted moving average - recent points have more weight
+    const smoothed = this.getWeightedAverage();
     this.livePosition = smoothed;
 
     const lastPoint = this.currentStroke.points[this.currentStroke.points.length - 1];
     const dist = this.distance(smoothed, lastPoint);
 
-    // Capture points for curves
+    // Capture points frequently for smoother curves
     if (dist >= STROKE.MIN_POINT_DISTANCE) {
       this.currentStroke.points.push(smoothed);
     }
   }
 
-  private getMovingAverage(): Point2D {
+  // Weighted average - recent points have more influence
+  private getWeightedAverage(): Point2D {
     if (this.recentPoints.length === 0) {
       return { x: 0, y: 0 };
     }
 
-    let sumX = 0, sumY = 0;
-    for (const p of this.recentPoints) {
-      sumX += p.x;
-      sumY += p.y;
+    // Weights: older points have less weight, newer have more
+    // For 6 points: [1, 2, 3, 4, 5, 6] - newest is 6x more important
+    let sumX = 0, sumY = 0, totalWeight = 0;
+    for (let i = 0; i < this.recentPoints.length; i++) {
+      const weight = i + 1;
+      sumX += this.recentPoints[i].x * weight;
+      sumY += this.recentPoints[i].y * weight;
+      totalWeight += weight;
     }
     return {
-      x: sumX / this.recentPoints.length,
-      y: sumY / this.recentPoints.length
+      x: sumX / totalWeight,
+      y: sumY / totalWeight
     };
   }
 
   // Update live position without adding a point (for real-time tracking)
   updateLivePosition(point: Point2D): void {
     this.recentPoints.push(point);
-    if (this.recentPoints.length > 3) {
+    if (this.recentPoints.length > 6) {
       this.recentPoints.shift();
     }
-    this.livePosition = this.getMovingAverage();
+    this.livePosition = this.getWeightedAverage();
   }
 
   clearLivePosition(): void {
