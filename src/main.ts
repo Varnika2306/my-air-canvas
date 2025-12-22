@@ -380,9 +380,9 @@ class AirCanvas {
       this.previewVideo.play();
     }
 
-    // Set preview canvas size
-    this.previewCanvas.width = 280;
-    this.previewCanvas.height = 210;
+    // Set preview canvas size (4:3 ratio to match camera)
+    this.previewCanvas.width = 320;
+    this.previewCanvas.height = 240;
   }
 
   private resize(): void {
@@ -429,13 +429,16 @@ class AirCanvas {
   }
 
   private renderPreviewOverlay(landmarks: HandLandmarks | null): void {
-    this.previewCtx.clearRect(0, 0, 280, 210);
+    const previewWidth = 320;
+    const previewHeight = 240;
+    this.previewCtx.clearRect(0, 0, previewWidth, previewHeight);
 
     if (!landmarks) return;
 
-    // Scale landmarks to preview size
-    const scaleX = 280 / window.innerWidth;
-    const scaleY = 210 / window.innerHeight;
+    // Use uniform scaling to maintain aspect ratio (same as main screen)
+    const scale = Math.min(previewWidth / window.innerWidth, previewHeight / window.innerHeight);
+    const offsetX = (previewWidth - window.innerWidth * scale) / 2;
+    const offsetY = (previewHeight - window.innerHeight * scale) / 2;
 
     // Draw hand skeleton connections
     const connections = [
@@ -455,8 +458,8 @@ class AirCanvas {
       const end = landmarks.landmarks[to];
 
       this.previewCtx.beginPath();
-      this.previewCtx.moveTo(start.x * scaleX, start.y * scaleY);
-      this.previewCtx.lineTo(end.x * scaleX, end.y * scaleY);
+      this.previewCtx.moveTo(start.x * scale + offsetX, start.y * scale + offsetY);
+      this.previewCtx.lineTo(end.x * scale + offsetX, end.y * scale + offsetY);
       this.previewCtx.stroke();
     }
 
@@ -464,7 +467,7 @@ class AirCanvas {
     this.previewCtx.fillStyle = '#bee17d';
     for (const lm of landmarks.landmarks) {
       this.previewCtx.beginPath();
-      this.previewCtx.arc(lm.x * scaleX, lm.y * scaleY, 3, 0, Math.PI * 2);
+      this.previewCtx.arc(lm.x * scale + offsetX, lm.y * scale + offsetY, 3, 0, Math.PI * 2);
       this.previewCtx.fill();
     }
   }
