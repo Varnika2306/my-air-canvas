@@ -52,6 +52,13 @@ class AirCanvas {
   private lastMouseY = 0;
   private selectedObject: BalloonObject | null = null;
 
+  // Camera preview drag state
+  private isPreviewDragging = false;
+  private previewDragStartX = 0;
+  private previewDragStartY = 0;
+  private previewStartLeft = 0;
+  private previewStartTop = 0;
+
   constructor() {
     // Get DOM elements
     const videoElement = document.getElementById('webcam') as HTMLVideoElement;
@@ -94,6 +101,7 @@ class AirCanvas {
     // Setup event listeners
     this.setupEventListeners();
     this.setupButtonListeners();
+    this.setupPreviewDrag();
     this.setupMultiplayer();
 
     // Start the application
@@ -183,11 +191,108 @@ class AirCanvas {
     // Camera preview expand button
     const previewExpandBtn = document.getElementById('preview-expand-btn');
     const cameraPreview = document.getElementById('camera-preview');
-    previewExpandBtn?.addEventListener('click', () => {
+    previewExpandBtn?.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent drag from starting
       cameraPreview?.classList.toggle('expanded');
       // Update preview canvas size when expanded
       this.updatePreviewCanvasSize();
     });
+  }
+
+  private setupPreviewDrag(): void {
+    const cameraPreview = document.getElementById('camera-preview');
+    const expandBtn = document.getElementById('preview-expand-btn');
+    if (!cameraPreview) return;
+
+    // Mouse events
+    cameraPreview.addEventListener('mousedown', (e) => {
+      // Don't start drag if clicking on the expand button
+      if (e.target === expandBtn) return;
+      this.startPreviewDrag(e.clientX, e.clientY, cameraPreview);
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!this.isPreviewDragging) return;
+      this.movePreview(e.clientX, e.clientY, cameraPreview);
+    });
+
+    document.addEventListener('mouseup', () => {
+      this.endPreviewDrag(cameraPreview);
+    });
+
+    // Touch events
+    cameraPreview.addEventListener('touchstart', (e) => {
+      // Don't start drag if touching the expand button
+      if (e.target === expandBtn) return;
+      if (e.touches.length === 1) {
+        e.preventDefault(); // Prevent scrolling
+        this.startPreviewDrag(e.touches[0].clientX, e.touches[0].clientY, cameraPreview);
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!this.isPreviewDragging) return;
+      if (e.touches.length === 1) {
+        this.movePreview(e.touches[0].clientX, e.touches[0].clientY, cameraPreview);
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+      this.endPreviewDrag(cameraPreview);
+    });
+
+    // Double-click to reset position
+    cameraPreview.addEventListener('dblclick', (e) => {
+      if (e.target === expandBtn) return;
+      this.resetPreviewPosition(cameraPreview);
+    });
+  }
+
+  private resetPreviewPosition(preview: HTMLElement): void {
+    preview.classList.remove('custom-position');
+    preview.style.left = '';
+    preview.style.top = '';
+  }
+
+  private startPreviewDrag(clientX: number, clientY: number, preview: HTMLElement): void {
+    this.isPreviewDragging = true;
+    this.previewDragStartX = clientX;
+    this.previewDragStartY = clientY;
+
+    // Get current position
+    const rect = preview.getBoundingClientRect();
+    this.previewStartLeft = rect.left;
+    this.previewStartTop = rect.top;
+
+    preview.classList.add('dragging');
+  }
+
+  private movePreview(clientX: number, clientY: number, preview: HTMLElement): void {
+    const deltaX = clientX - this.previewDragStartX;
+    const deltaY = clientY - this.previewDragStartY;
+
+    let newLeft = this.previewStartLeft + deltaX;
+    let newTop = this.previewStartTop + deltaY;
+
+    // Constrain to viewport
+    const rect = preview.getBoundingClientRect();
+    const maxLeft = window.innerWidth - rect.width;
+    const maxTop = window.innerHeight - rect.height;
+
+    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+    newTop = Math.max(0, Math.min(newTop, maxTop));
+
+    // Apply custom position (remove centered transform)
+    preview.classList.add('custom-position');
+    preview.style.left = `${newLeft}px`;
+    preview.style.top = `${newTop}px`;
+  }
+
+  private endPreviewDrag(preview: HTMLElement): void {
+    if (this.isPreviewDragging) {
+      this.isPreviewDragging = false;
+      preview.classList.remove('dragging');
+    }
   }
 
   private updatePreviewCanvasSize(): void {

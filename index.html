@@ -48,7 +48,7 @@
       display: none;
     }
 
-    /* Camera preview in top center */
+    /* Camera preview - draggable */
     #camera-preview {
       position: absolute;
       top: 24px;
@@ -62,7 +62,23 @@
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
       z-index: 10;
       background: #000;
-      transition: all 0.3s ease;
+      cursor: grab;
+      user-select: none;
+    }
+
+    #camera-preview.dragging {
+      cursor: grabbing;
+      opacity: 0.9;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+      transition: none;
+    }
+
+    #camera-preview:not(.dragging) {
+      transition: box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    #camera-preview.custom-position {
+      transform: none;
     }
 
     #camera-preview.expanded {
@@ -661,11 +677,14 @@
       }
 
       #camera-preview {
+        width: 160px;
+        height: 120px;
+      }
+
+      #camera-preview:not(.custom-position) {
         top: 16px;
         left: 50%;
         transform: translateX(-50%);
-        width: 160px;
-        height: 120px;
       }
 
       #camera-preview.expanded {
@@ -764,12 +783,15 @@
       }
 
       #camera-preview {
-        top: 12px;
-        left: 50%;
-        transform: translateX(-50%);
         width: 120px;
         height: 90px;
         border-radius: 8px;
+      }
+
+      #camera-preview:not(.custom-position) {
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
       }
 
       .action-buttons {
@@ -855,11 +877,14 @@
     /* Landscape mobile */
     @media (max-height: 500px) and (orientation: landscape) {
       #camera-preview {
+        width: 140px;
+        height: 105px;
+      }
+
+      #camera-preview:not(.custom-position) {
         top: 12px;
         left: 50%;
         transform: translateX(-50%);
-        width: 140px;
-        height: 105px;
       }
 
       .title-section {
