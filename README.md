@@ -2,6 +2,16 @@
 
 A browser-based gesture drawing experience where you draw shapes in the air using hand gestures via your webcam. Completed drawings inflate into soft, 3D balloon-like objects that float in a shared scene.
 
+> **Disclaimer**: This project was built in about 6 hours, so expect bugs! If you encounter any issues or have suggestions, feel free to open an issue or leave feedback. I'd love to hear what you think! Also, feel free to fork this project and make your own version of it.
+
+## Recent Updates
+
+- **Draggable Camera Preview** - Move the camera preview anywhere on screen so it doesn't block your creations. Double-click to reset position.
+- **Improved Line Smoothing** - Added jitter filter to eliminate hand vibration for smoother drawing
+- **Better Hand Detection** - Switched to higher accuracy model for more reliable tracking
+- **Clear All Button** - Replaced fist gesture with a dedicated button for easier clearing
+- **Expandable Preview** - Click the expand button on camera preview to enlarge it
+
 ## Features
 
 - **Gesture-Based Drawing** - Point your index finger to draw in the air
@@ -9,7 +19,7 @@ A browser-based gesture drawing experience where you draw shapes in the air usin
 - **Real-Time Hand Tracking** - Powered by MediaPipe for responsive hand detection
 - **Color Palette** - Choose from 10 pastel colors for your creations
 - **Interactive Objects** - Poke, grab, and rotate your balloon creations
-- **Camera Preview** - See your hand tracking skeleton in real-time
+- **Draggable Camera Preview** - See your hand tracking skeleton and move it anywhere
 - **Mouse/Touch Controls** - Orbit and zoom the 3D scene
 
 ## How It Works
@@ -17,7 +27,7 @@ A browser-based gesture drawing experience where you draw shapes in the air usin
 1. **Draw** - Extend your index finger (keep other fingers curled) to draw
 2. **Complete Shape** - Hold an open palm for 0.5 seconds to close and inflate your drawing
 3. **Interact** - Pinch to grab and move objects, poke with your finger to squish them
-4. **Clear** - Hold a fist for 1 second to clear all objects
+4. **Clear** - Click the "Clear All" button to remove all objects
 
 ## Gesture Controls
 
@@ -26,15 +36,23 @@ A browser-based gesture drawing experience where you draw shapes in the air usin
 | Point (index finger) | Draw in the air |
 | Open Palm (hold) | Close shape and inflate to 3D |
 | Pinch | Grab and move objects |
-| Fist (hold) | Clear all objects |
 | Swipe | Remove individual object |
+
+## UI Controls
+
+| Control | Action |
+|---------|--------|
+| Clear All button | Remove all objects |
+| Color swatches | Change drawing color |
+| Camera preview | Drag to move, double-click to reset |
+| Expand button (on preview) | Toggle larger preview |
 
 ## Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/janusdesigns/air-canvas-2.git
-cd air-canvas-2
+git clone https://github.com/janusdesigns/air-canvas.git
+cd air-canvas
 
 # Install dependencies
 npm install
@@ -50,6 +68,7 @@ Then open your browser to the local URL shown in the terminal (usually `http://l
 - Modern browser with WebGL support (Chrome, Firefox, Edge, Safari)
 - Webcam access
 - Good lighting for hand tracking
+- HTTPS connection (required for camera access when hosted online)
 
 ## Tech Stack
 
@@ -76,10 +95,27 @@ src/
 ├── drawingCanvas.ts  # 2D stroke rendering
 ├── scene3D.ts        # Three.js scene setup
 ├── objectManager.ts  # 3D balloon creation and physics
+├── balloonInflator.ts # 3D mesh generation from strokes
 ├── handVisualizer.ts # Hand skeleton overlay
+├── multiplayer.ts    # PeerJS multiplayer support
 ├── constants.ts      # Configuration values
 └── types.ts          # TypeScript interfaces
 ```
+
+## Tips for Best Results
+
+- Use good lighting so your hand is clearly visible
+- Keep your hand about 1-2 feet from the camera
+- Point with just your index finger extended for drawing
+- Draw slowly and steadily for smoother lines
+
+## Feedback & Contributions
+
+Found a bug? Have an idea? I'd love to hear from you!
+
+- Open an issue on GitHub
+- Fork and submit a pull request
+- Share your own version built on this project
 
 ## Credits
 
