@@ -121,6 +121,21 @@ Found a bug? Have an idea? I'd love to hear from you!
 
 Designed by [Janus Tiu](https://www.instagram.com/janustiu/)
 
+### Open Source Libraries
+
+This project is built with these amazing open source libraries:
+
+| Library | Description | License |
+|---------|-------------|---------|
+| [Three.js](https://threejs.org/) | 3D graphics library for WebGL rendering | MIT |
+| [MediaPipe Hands](https://google.github.io/mediapipe/solutions/hands.html) | Google's real-time hand tracking solution | Apache 2.0 |
+| [GSAP](https://greensock.com/gsap/) | Professional-grade animation library | GreenSock License |
+| [PeerJS](https://peerjs.com/) | WebRTC peer-to-peer connections made easy | MIT |
+| [Vite](https://vitejs.dev/) | Next-generation frontend build tool | MIT |
+| [TypeScript](https://www.typescriptlang.org/) | Typed superset of JavaScript | Apache 2.0 |
+
+Thank you to all the maintainers and contributors of these projects!
+
 ## License
 
 MIT
