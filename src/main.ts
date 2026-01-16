@@ -297,7 +297,6 @@ class AirCanvas {
 
   private updatePreviewCanvasSize(): void {
     const cameraPreview = document.getElementById('camera-preview');
-    const isExpanded = cameraPreview?.classList.contains('expanded');
 
     // Get computed size of the preview container
     if (cameraPreview) {
