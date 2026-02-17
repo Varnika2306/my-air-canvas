@@ -119,8 +119,7 @@ Found a bug? Have an idea? I'd love to hear from you!
 
 ## Credits
 
-Designed by [Janus Tiu](https://www.instagram.com/janustiu/)
-
+Designed by [varnika]
 ### Open Source Libraries
 
 This project is built with these amazing open source libraries:
